@@ -1,591 +1,721 @@
-# Modèle Relationnel - Clinique Dentaire Dentissimo
+# Modèle Relationnel (MLD) - Clinique Dentaire Dentissimo
 
-## 1. FRANCHISE
-Gestion des différentes franchises de la clinique.
-
-```
-FRANCHISE(
-    id_franchise: NUMBER [PK],
-    nom: VARCHAR2(100) [NOT NULL],
-    adresse: VARCHAR2(200) [NOT NULL],
-    ville: VARCHAR2(100) [NOT NULL],
-    code_postal: VARCHAR2(10) [NOT NULL],
-    telephone: VARCHAR2(15),
-    email: VARCHAR2(100),
-    date_ouverture: DATE
-)
-```
-
-**Contraintes:**
-- PK: `id_franchise`
-- UNIQUE: `email`
+## Transformation du Modèle Conceptuel en Modèle Relationnel
 
 ---
 
-## 2. PATIENT
-Informations personnelles des patients.
+## 1. Règles de Transformation MCD → MLD
 
-```
-PATIENT(
-    id_patient: NUMBER [PK],
-    nom: VARCHAR2(100) [NOT NULL],
-    prenom: VARCHAR2(100) [NOT NULL],
-    date_naissance: DATE [NOT NULL],
-    sexe: CHAR(1) [CHECK sexe IN ('M', 'F')],
-    adresse: VARCHAR2(200),
-    ville: VARCHAR2(100),
-    code_postal: VARCHAR2(10),
-    telephone: VARCHAR2(15),
-    email: VARCHAR2(100),
-    numero_securite_sociale: VARCHAR2(15) [UNIQUE],
-    date_inscription: DATE DEFAULT SYSDATE,
-    id_franchise: NUMBER [FK -> FRANCHISE]
-)
-```
+### Règle 1 : Transformation des entités
+Chaque entité devient une table avec :
+- La clé primaire de l'entité devient la clé primaire de la table
+- Tous les attributs simples deviennent des colonnes
 
-**Contraintes:**
-- PK: `id_patient`
-- FK: `id_franchise` REFERENCES `FRANCHISE(id_franchise)`
-- UNIQUE: `numero_securite_sociale`
-- CHECK: `sexe IN ('M', 'F')`
+### Règle 2 : Transformation des associations
+
+#### Association 1:N (One-to-Many)
+- La clé primaire du côté "1" devient clé étrangère du côté "N"
+- Les attributs de l'association (s'il y en a) sont ajoutés au côté "N"
+
+#### Association N:M (Many-to-Many)
+- Création d'une table d'association
+- Clé primaire composée des deux clés étrangères
+- Les attributs de l'association deviennent des colonnes
+
+#### Association 1:1 (One-to-One)
+- Une des deux clés devient clé étrangère dans l'autre table
+- Généralement, on choisit le côté optionnel pour recevoir la clé étrangère
 
 ---
 
-## 3. PERSONNEL
-Informations sur le personnel interne et les praticiens externes.
+## 2. Tables Résultantes de la Transformation
 
-```
-PERSONNEL(
-    id_personnel: NUMBER [PK],
-    nom: VARCHAR2(100) [NOT NULL],
-    prenom: VARCHAR2(100) [NOT NULL],
-    type_personnel: VARCHAR2(50) [NOT NULL] [CHECK type_personnel IN ('Dentiste', 'Assistant', 'Hygieniste', 'Praticien_Externe')],
-    specialite: VARCHAR2(100),
-    telephone: VARCHAR2(15),
-    email: VARCHAR2(100) [UNIQUE],
-    date_embauche: DATE,
-    salaire: NUMBER(10,2),
-    est_externe: CHAR(1) DEFAULT 'N' [CHECK est_externe IN ('O', 'N')],
-    id_franchise: NUMBER [FK -> FRANCHISE]
-)
-```
+### 2.1 Transformation des Entités Simples
 
-**Contraintes:**
-- PK: `id_personnel`
-- FK: `id_franchise` REFERENCES `FRANCHISE(id_franchise)`
-- UNIQUE: `email`
-- CHECK: `type_personnel IN ('Dentiste', 'Assistant', 'Hygieniste', 'Praticien_Externe')`
-- CHECK: `est_externe IN ('O', 'N')`
-
----
-
-## 4. DOSSIER_PATIENT
-Dossier médical associé à un patient.
-
-```
-DOSSIER_PATIENT(
-    id_dossier: NUMBER [PK],
-    id_patient: NUMBER [FK -> PATIENT] [NOT NULL],
-    date_creation: DATE DEFAULT SYSDATE [NOT NULL],
-    date_derniere_modification: DATE,
-    statut: VARCHAR2(20) DEFAULT 'Ouvert' [CHECK statut IN ('Ouvert', 'Ferme')],
-    motif_consultation: VARCHAR2(500),
-    notes_generales: CLOB,
-    allergies: VARCHAR2(500),
-    antecedents_medicaux: CLOB
-)
-```
-
-**Contraintes:**
-- PK: `id_dossier`
-- FK: `id_patient` REFERENCES `PATIENT(id_patient)`
-- CHECK: `statut IN ('Ouvert', 'Ferme')`
-
----
-
-## 5. TRAITEMENT
-Historique des traitements effectués pour chaque dossier patient.
-
-```
-TRAITEMENT(
-    id_traitement: NUMBER [PK],
-    id_dossier: NUMBER [FK -> DOSSIER_PATIENT] [NOT NULL],
-    date_debut: DATE [NOT NULL],
-    date_fin: DATE,
-    description: VARCHAR2(500),
-    cout_total: NUMBER(10,2) DEFAULT 0,
-    statut: VARCHAR2(20) DEFAULT 'En cours' [CHECK statut IN ('En cours', 'Termine', 'Annule')],
-    notes: CLOB
-)
-```
-
-**Contraintes:**
-- PK: `id_traitement`
-- FK: `id_dossier` REFERENCES `DOSSIER_PATIENT(id_dossier)`
-- CHECK: `statut IN ('En cours', 'Termine', 'Annule')`
-- CHECK: `date_fin >= date_debut` (si date_fin NOT NULL)
-
----
-
-## 6. ACTE_MEDICAL
-Détails des actes médicaux réalisés lors des traitements.
-
-```
-ACTE_MEDICAL(
-    id_acte: NUMBER [PK],
-    id_traitement: NUMBER [FK -> TRAITEMENT] [NOT NULL],
-    id_personnel: NUMBER [FK -> PERSONNEL] [NOT NULL],
-    date_acte: DATE DEFAULT SYSDATE [NOT NULL],
-    type_acte: VARCHAR2(100) [NOT NULL],
-    description: VARCHAR2(500),
-    montant: NUMBER(10,2) [NOT NULL],
-    duree_minutes: NUMBER(5),
-    notes: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `id_acte`
-- FK: `id_traitement` REFERENCES `TRAITEMENT(id_traitement)`
-- FK: `id_personnel` REFERENCES `PERSONNEL(id_personnel)`
-- CHECK: `montant >= 0`
-- CHECK: `duree_minutes > 0`
-
----
-
-## 7. RADIOGRAPHIE
-Radiographies associées aux actes médicaux.
-
-```
-RADIOGRAPHIE(
-    id_radiographie: NUMBER [PK],
-    id_acte: NUMBER [FK -> ACTE_MEDICAL] [NOT NULL],
-    type_radio: VARCHAR2(50) [NOT NULL] [CHECK type_radio IN ('Panoramique', 'Retroalveolaire', 'Cone Beam')],
-    date_radio: DATE DEFAULT SYSDATE,
-    fichier_image: VARCHAR2(500),
-    observations: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `id_radiographie`
-- FK: `id_acte` REFERENCES `ACTE_MEDICAL(id_acte)`
-- CHECK: `type_radio IN ('Panoramique', 'Retroalveolaire', 'Cone Beam')`
-
----
-
-## 8. PRESCRIPTION
-Prescriptions médicales associées aux actes.
-
-```
-PRESCRIPTION(
-    id_prescription: NUMBER [PK],
-    id_acte: NUMBER [FK -> ACTE_MEDICAL] [NOT NULL],
-    date_prescription: DATE DEFAULT SYSDATE,
-    medicament: VARCHAR2(200) [NOT NULL],
-    dosage: VARCHAR2(100),
-    duree_traitement: VARCHAR2(100),
-    instructions: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `id_prescription`
-- FK: `id_acte` REFERENCES `ACTE_MEDICAL(id_acte)`
-
----
-
-## 9. DENT
-Représentation de chaque dent d'un patient (système FDI).
-
-```
-DENT(
-    id_dent: NUMBER [PK],
-    id_patient: NUMBER [FK -> PATIENT] [NOT NULL],
-    code_fdi: NUMBER(2) [NOT NULL] [CHECK code_fdi BETWEEN 11 AND 85],
-    type_dent: VARCHAR2(20) [CHECK type_dent IN ('Incisive', 'Canine', 'Premolaire', 'Molaire')],
-    position: VARCHAR2(50),
-    date_enregistrement: DATE DEFAULT SYSDATE
-)
-```
-
-**Contraintes:**
-- PK: `id_dent`
-- FK: `id_patient` REFERENCES `PATIENT(id_patient)`
-- UNIQUE: `(id_patient, code_fdi)`
-- CHECK: `code_fdi BETWEEN 11 AND 85`
-- CHECK: `type_dent IN ('Incisive', 'Canine', 'Premolaire', 'Molaire')`
-
----
-
-## 10. ANOMALIE
-Types d'anomalies dentaires.
-
-```
-ANOMALIE(
-    id_anomalie: NUMBER [PK],
-    type_anomalie: VARCHAR2(100) [NOT NULL],
-    description: VARCHAR2(500),
-    gravite: VARCHAR2(20) [CHECK gravite IN ('Legere', 'Moderee', 'Severe', 'Critique')]
-)
-```
-
-**Contraintes:**
-- PK: `id_anomalie`
-- UNIQUE: `type_anomalie`
-- CHECK: `gravite IN ('Legere', 'Moderee', 'Severe', 'Critique')`
-
----
-
-## 11. RESTAURATION
-Types de restaurations dentaires.
-
-```
-RESTAURATION(
-    id_restauration: NUMBER [PK],
-    type_restauration: VARCHAR2(100) [NOT NULL],
-    materiau: VARCHAR2(100),
-    duree_vie_estimee_mois: NUMBER(5),
-    description: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `id_restauration`
-- UNIQUE: `type_restauration`
-- CHECK: `duree_vie_estimee_mois > 0`
-
----
-
-## 12. ETAT_DENT
-Historique de l'état de chaque dent à un moment précis.
-
-```
-ETAT_DENT(
-    id_etat_dent: NUMBER [PK],
-    id_dent: NUMBER [FK -> DENT] [NOT NULL],
-    id_acte: NUMBER [FK -> ACTE_MEDICAL],
-    date_observation: DATE DEFAULT SYSDATE [NOT NULL],
-    etat_general: VARCHAR2(20) [CHECK etat_general IN ('Saine', 'Atteinte', 'Traitee', 'Extraite')],
-    notes: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `id_etat_dent`
-- FK: `id_dent` REFERENCES `DENT(id_dent)`
-- FK: `id_acte` REFERENCES `ACTE_MEDICAL(id_acte)` (nullable)
-- CHECK: `etat_general IN ('Saine', 'Atteinte', 'Traitee', 'Extraite')`
-
----
-
-## 13. ETAT_DENT_ANOMALIE
-Association entre un état de dent et les anomalies détectées (relation N:M).
-
-```
-ETAT_DENT_ANOMALIE(
-    id_etat_dent: NUMBER [FK -> ETAT_DENT],
-    id_anomalie: NUMBER [FK -> ANOMALIE],
-    date_detection: DATE DEFAULT SYSDATE,
-    stade: VARCHAR2(50),
-    observations: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `(id_etat_dent, id_anomalie)`
-- FK: `id_etat_dent` REFERENCES `ETAT_DENT(id_etat_dent)`
-- FK: `id_anomalie` REFERENCES `ANOMALIE(id_anomalie)`
-
----
-
-## 14. ETAT_DENT_RESTAURATION
-Association entre un état de dent et les restaurations effectuées (relation N:M).
-
-```
-ETAT_DENT_RESTAURATION(
-    id_etat_dent: NUMBER [FK -> ETAT_DENT],
-    id_restauration: NUMBER [FK -> RESTAURATION],
-    date_restauration: DATE DEFAULT SYSDATE,
-    materiau_utilise: VARCHAR2(100),
-    cout: NUMBER(10,2),
-    observations: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `(id_etat_dent, id_restauration)`
-- FK: `id_etat_dent` REFERENCES `ETAT_DENT(id_etat_dent)`
-- FK: `id_restauration` REFERENCES `RESTAURATION(id_restauration)`
-- CHECK: `cout >= 0`
-
----
-
-## 15. PAIEMENT
-Suivi des paiements pour les actes et traitements.
-
-```
-PAIEMENT(
-    id_paiement: NUMBER [PK],
-    id_traitement: NUMBER [FK -> TRAITEMENT] [NOT NULL],
-    date_paiement: DATE DEFAULT SYSDATE [NOT NULL],
-    montant: NUMBER(10,2) [NOT NULL],
-    mode_paiement: VARCHAR2(50) [CHECK mode_paiement IN ('Especes', 'Carte', 'Cheque', 'Virement', 'Mutuelle')],
-    statut: VARCHAR2(20) DEFAULT 'Effectue' [CHECK statut IN ('Effectue', 'En attente', 'Annule', 'Rembourse')],
-    reference: VARCHAR2(100),
-    notes: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `id_paiement`
-- FK: `id_traitement` REFERENCES `TRAITEMENT(id_traitement)`
-- CHECK: `montant > 0`
-- CHECK: `mode_paiement IN ('Especes', 'Carte', 'Cheque', 'Virement', 'Mutuelle')`
-- CHECK: `statut IN ('Effectue', 'En attente', 'Annule', 'Rembourse')`
-
----
-
-## 16. FOURNISSEUR
-Informations sur les fournisseurs de produits dentaires.
-
-```
-FOURNISSEUR(
-    id_fournisseur: NUMBER [PK],
-    nom: VARCHAR2(100) [NOT NULL],
-    adresse: VARCHAR2(200),
-    ville: VARCHAR2(100),
-    code_postal: VARCHAR2(10),
-    telephone: VARCHAR2(15),
-    email: VARCHAR2(100) [UNIQUE],
-    contact_principal: VARCHAR2(100),
-    notes: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `id_fournisseur`
-- UNIQUE: `email`
-
----
-
-## 17. PRODUIT_DENTAIRE
-Catalogue des produits dentaires et consommables.
-
-```
-PRODUIT_DENTAIRE(
-    id_produit: NUMBER [PK],
-    nom: VARCHAR2(200) [NOT NULL],
-    type_produit: VARCHAR2(50) [NOT NULL],
-    description: VARCHAR2(500),
-    unite_mesure: VARCHAR2(20),
-    stock_actuel: NUMBER(10,2) DEFAULT 0,
-    stock_minimum: NUMBER(10,2) DEFAULT 0,
-    prix_unitaire: NUMBER(10,2),
-    id_fournisseur: NUMBER [FK -> FOURNISSEUR]
-)
-```
-
-**Contraintes:**
-- PK: `id_produit`
-- FK: `id_fournisseur` REFERENCES `FOURNISSEUR(id_fournisseur)`
-- CHECK: `stock_actuel >= 0`
-- CHECK: `stock_minimum >= 0`
-- CHECK: `prix_unitaire >= 0`
-
----
-
-## 18. COMMANDE
-Suivi des commandes passées aux fournisseurs.
-
-```
-COMMANDE(
-    id_commande: NUMBER [PK],
-    id_fournisseur: NUMBER [FK -> FOURNISSEUR] [NOT NULL],
-    id_franchise: NUMBER [FK -> FRANCHISE] [NOT NULL],
-    date_commande: DATE DEFAULT SYSDATE [NOT NULL],
-    date_livraison_prevue: DATE,
-    date_livraison_reelle: DATE,
-    statut: VARCHAR2(20) DEFAULT 'En cours' [CHECK statut IN ('En cours', 'Livree', 'Annulee', 'Partielle')],
-    montant_total: NUMBER(10,2) DEFAULT 0,
-    notes: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `id_commande`
-- FK: `id_fournisseur` REFERENCES `FOURNISSEUR(id_fournisseur)`
-- FK: `id_franchise` REFERENCES `FRANCHISE(id_franchise)`
-- CHECK: `statut IN ('En cours', 'Livree', 'Annulee', 'Partielle')`
-- CHECK: `montant_total >= 0`
-- CHECK: `date_livraison_prevue >= date_commande`
-
----
-
-## 19. LIGNE_COMMANDE
-Détails des produits dans une commande (relation N:M).
-
-```
-LIGNE_COMMANDE(
-    id_commande: NUMBER [FK -> COMMANDE],
-    id_produit: NUMBER [FK -> PRODUIT_DENTAIRE],
-    quantite: NUMBER(10,2) [NOT NULL],
-    prix_unitaire: NUMBER(10,2) [NOT NULL],
-    montant_ligne: NUMBER(10,2) [NOT NULL]
-)
-```
-
-**Contraintes:**
-- PK: `(id_commande, id_produit)`
-- FK: `id_commande` REFERENCES `COMMANDE(id_commande)`
-- FK: `id_produit` REFERENCES `PRODUIT_DENTAIRE(id_produit)`
-- CHECK: `quantite > 0`
-- CHECK: `prix_unitaire >= 0`
-- CHECK: `montant_ligne = quantite * prix_unitaire`
-
----
-
-## 20. EQUIPEMENT
-Inventaire des équipements médicaux de la clinique.
-
-```
-EQUIPEMENT(
-    id_equipement: NUMBER [PK],
-    nom: VARCHAR2(200) [NOT NULL],
-    type_equipement: VARCHAR2(100),
-    numero_serie: VARCHAR2(100) [UNIQUE],
-    date_acquisition: DATE,
-    prix_acquisition: NUMBER(10,2),
-    etat: VARCHAR2(20) DEFAULT 'Fonctionnel' [CHECK etat IN ('Fonctionnel', 'En maintenance', 'Hors service', 'En reparation')],
-    date_derniere_maintenance: DATE,
-    id_franchise: NUMBER [FK -> FRANCHISE]
-)
-```
-
-**Contraintes:**
-- PK: `id_equipement`
-- FK: `id_franchise` REFERENCES `FRANCHISE(id_franchise)`
-- UNIQUE: `numero_serie`
-- CHECK: `etat IN ('Fonctionnel', 'En maintenance', 'Hors service', 'En reparation')`
-- CHECK: `prix_acquisition >= 0`
-
----
-
-## 21. UTILISATION_PRODUIT
-Suivi de l'utilisation des produits lors des actes médicaux (relation N:M).
-
-```
-UTILISATION_PRODUIT(
-    id_acte: NUMBER [FK -> ACTE_MEDICAL],
-    id_produit: NUMBER [FK -> PRODUIT_DENTAIRE],
-    quantite_utilisee: NUMBER(10,2) [NOT NULL],
-    date_utilisation: DATE DEFAULT SYSDATE
-)
-```
-
-**Contraintes:**
-- PK: `(id_acte, id_produit)`
-- FK: `id_acte` REFERENCES `ACTE_MEDICAL(id_acte)`
-- FK: `id_produit` REFERENCES `PRODUIT_DENTAIRE(id_produit)`
-- CHECK: `quantite_utilisee > 0`
-
----
-
-## 22. UTILISATION_EQUIPEMENT
-Suivi de l'utilisation des équipements lors des actes médicaux (relation N:M).
-
-```
-UTILISATION_EQUIPEMENT(
-    id_acte: NUMBER [FK -> ACTE_MEDICAL],
-    id_equipement: NUMBER [FK -> EQUIPEMENT],
-    date_utilisation: DATE DEFAULT SYSDATE,
-    duree_utilisation_minutes: NUMBER(5),
-    notes: VARCHAR2(500)
-)
-```
-
-**Contraintes:**
-- PK: `(id_acte, id_equipement)`
-- FK: `id_acte` REFERENCES `ACTE_MEDICAL(id_acte)`
-- FK: `id_equipement` REFERENCES `EQUIPEMENT(id_equipement)`
-- CHECK: `duree_utilisation_minutes > 0`
-
----
-
-## Résumé des Relations
-
-### Relations 1:N (One-to-Many)
-1. **FRANCHISE** → **PATIENT** (Une franchise a plusieurs patients)
-2. **FRANCHISE** → **PERSONNEL** (Une franchise emploie plusieurs membres du personnel)
-3. **FRANCHISE** → **EQUIPEMENT** (Une franchise possède plusieurs équipements)
-4. **FRANCHISE** → **COMMANDE** (Une franchise passe plusieurs commandes)
-5. **PATIENT** → **DOSSIER_PATIENT** (Un patient peut avoir plusieurs dossiers)
-6. **PATIENT** → **DENT** (Un patient a plusieurs dents)
-7. **DOSSIER_PATIENT** → **TRAITEMENT** (Un dossier contient plusieurs traitements)
-8. **TRAITEMENT** → **ACTE_MEDICAL** (Un traitement comprend plusieurs actes)
-9. **TRAITEMENT** → **PAIEMENT** (Un traitement peut avoir plusieurs paiements)
-10. **PERSONNEL** → **ACTE_MEDICAL** (Un praticien réalise plusieurs actes)
-11. **ACTE_MEDICAL** → **RADIOGRAPHIE** (Un acte peut avoir plusieurs radiographies)
-12. **ACTE_MEDICAL** → **PRESCRIPTION** (Un acte peut générer plusieurs prescriptions)
-13. **ACTE_MEDICAL** → **ETAT_DENT** (Un acte peut concerner plusieurs états de dents)
-14. **DENT** → **ETAT_DENT** (Une dent a plusieurs états historiques)
-15. **FOURNISSEUR** → **PRODUIT_DENTAIRE** (Un fournisseur fournit plusieurs produits)
-16. **FOURNISSEUR** → **COMMANDE** (Un fournisseur reçoit plusieurs commandes)
-
-### Relations N:M (Many-to-Many)
-1. **ETAT_DENT** ↔ **ANOMALIE** (via ETAT_DENT_ANOMALIE)
-2. **ETAT_DENT** ↔ **RESTAURATION** (via ETAT_DENT_RESTAURATION)
-3. **COMMANDE** ↔ **PRODUIT_DENTAIRE** (via LIGNE_COMMANDE)
-4. **ACTE_MEDICAL** ↔ **PRODUIT_DENTAIRE** (via UTILISATION_PRODUIT)
-5. **ACTE_MEDICAL** ↔ **EQUIPEMENT** (via UTILISATION_EQUIPEMENT)
-
----
-
-## Normalisation
-
-Le modèle respecte la **3ème Forme Normale (3NF)** :
-- ✅ **1NF** : Toutes les valeurs sont atomiques, pas de groupes répétitifs
-- ✅ **2NF** : Tous les attributs non-clés dépendent de la totalité de la clé primaire
-- ✅ **3NF** : Aucune dépendance transitive (pas d'attribut non-clé dépendant d'un autre attribut non-clé)
-
----
-
-## Index Recommandés
-
-Pour optimiser les performances des requêtes :
+#### FRANCHISE
+Entité → Table directe
 
 ```sql
--- Index sur les clés étrangères
-CREATE INDEX idx_patient_franchise ON PATIENT(id_franchise);
-CREATE INDEX idx_dossier_patient ON DOSSIER_PATIENT(id_patient);
-CREATE INDEX idx_traitement_dossier ON TRAITEMENT(id_dossier);
-CREATE INDEX idx_acte_traitement ON ACTE_MEDICAL(id_traitement);
-CREATE INDEX idx_acte_personnel ON ACTE_MEDICAL(id_personnel);
-CREATE INDEX idx_dent_patient ON DENT(id_patient);
-CREATE INDEX idx_etat_dent ON ETAT_DENT(id_dent);
-CREATE INDEX idx_paiement_traitement ON PAIEMENT(id_traitement);
-CREATE INDEX idx_commande_fournisseur ON COMMANDE(id_fournisseur);
+FRANCHISE (
+    franchise_id       NUMBER [PK],
+    nom                VARCHAR2(120) [NOT NULL],
+    adresse            VARCHAR2(240),
+    ville              VARCHAR2(80),
+    code_postal        VARCHAR2(15),
+    telephone          VARCHAR2(30)
+)
+```
 
--- Index sur les dates fréquemment utilisées
-CREATE INDEX idx_patient_date_inscription ON PATIENT(date_inscription);
-CREATE INDEX idx_acte_date ON ACTE_MEDICAL(date_acte);
-CREATE INDEX idx_paiement_date ON PAIEMENT(date_paiement);
+**Origine :** Entité FRANCHISE du MCD
 
--- Index composites
-CREATE INDEX idx_dent_patient_code ON DENT(id_patient, code_fdi);
-CREATE INDEX idx_traitement_dates ON TRAITEMENT(date_debut, date_fin);
+---
+
+#### PERSONNEL
+Entité → Table directe
+
+```sql
+PERSONNEL (
+    personnel_id       NUMBER [PK],
+    nom                VARCHAR2(80) [NOT NULL],
+    prenom             VARCHAR2(80) [NOT NULL],
+    role_metier        VARCHAR2(40) [NOT NULL],
+    specialite         VARCHAR2(80),
+    type_contrat       VARCHAR2(20) [CHECK (type_contrat IN ('INTERNE','EXTERNE'))],
+    telephone          VARCHAR2(30),
+    email              VARCHAR2(120)
+)
+```
+
+**Origine :** Entité PERSONNEL du MCD
+
+---
+
+#### PATIENT
+Entité → Table directe + Association FREQUENTER (0,1)
+
+```sql
+PATIENT (
+    patient_id         NUMBER [PK],
+    nom                VARCHAR2(80) [NOT NULL],
+    prenom             VARCHAR2(80) [NOT NULL],
+    date_naissance     DATE,
+    sexe               CHAR(1) [CHECK (sexe IN ('M','F'))],
+    telephone          VARCHAR2(30),
+    email              VARCHAR2(120),
+    adresse            VARCHAR2(240),
+    ville              VARCHAR2(80),
+    code_postal        VARCHAR2(15),
+    franchise_ref_id   NUMBER [FK → FRANCHISE]
+)
+```
+
+**Origine :**
+- Entité PATIENT du MCD
+- Association FREQUENTER (0,1) : ajout de `franchise_ref_id` (optionnel car cardinalité 0,1)
+
+---
+
+#### PRODUIT_DENTAIRE
+Entité → Table directe
+
+```sql
+PRODUIT_DENTAIRE (
+    produit_id         NUMBER [PK],
+    nom                VARCHAR2(120) [NOT NULL],
+    type_produit       VARCHAR2(80) [NOT NULL],
+    stock_quantite     NUMBER(10,2),
+    unite              VARCHAR2(20),
+    seuil_alerte       NUMBER(10,2),
+    prix_unitaire      NUMBER(10,2)
+)
+```
+
+**Origine :** Entité PRODUIT_DENTAIRE du MCD
+
+---
+
+#### FOURNISSEUR
+Entité → Table directe
+
+```sql
+FOURNISSEUR (
+    fournisseur_id     NUMBER [PK],
+    nom                VARCHAR2(120) [NOT NULL],
+    contact            VARCHAR2(120),
+    telephone          VARCHAR2(30),
+    email              VARCHAR2(120)
+)
+```
+
+**Origine :** Entité FOURNISSEUR du MCD
+
+---
+
+#### EQUIPEMENT
+Entité → Table directe + Association POSSEDER_EQUIPEMENT (0,1)
+
+```sql
+EQUIPEMENT (
+    equipement_id      NUMBER [PK],
+    nom                VARCHAR2(120) [NOT NULL],
+    categorie          VARCHAR2(80),
+    date_acquisition   DATE,
+    cout_acquisition   NUMBER(12,2),
+    statut             VARCHAR2(20) [CHECK (statut IN ('ACTIF','HORS_SERVICE','MAINTENANCE'))],
+    franchise_id       NUMBER [FK → FRANCHISE]
+)
+```
+
+**Origine :**
+- Entité EQUIPEMENT du MCD
+- Association POSSEDER_EQUIPEMENT (0,1) : ajout de `franchise_id` (optionnel)
+
+---
+
+#### ANOMALIE
+Entité → Table directe (table de référence)
+
+```sql
+ANOMALIE (
+    anomalie_id        NUMBER [PK],
+    libelle            VARCHAR2(120) [NOT NULL],
+    description        VARCHAR2(400),
+    severite           VARCHAR2(20) [CHECK (severite IN ('LEGER','MODERE','SEVERE'))]
+)
+```
+
+**Origine :** Entité ANOMALIE du MCD (catalogue de référence)
+
+---
+
+### 2.2 Transformation des Entités avec Associations 1:N
+
+#### DOSSIER_PATIENT
+Entité → Table + Associations AVOIR_DOSSIER (1,1) et OUVRIR_DANS (1,1)
+
+```sql
+DOSSIER_PATIENT (
+    dossier_id         NUMBER [PK],
+    patient_id         NUMBER [NOT NULL] [FK → PATIENT],
+    franchise_id       NUMBER [NOT NULL] [FK → FRANCHISE],
+    date_creation      DATE [NOT NULL],
+    statut             VARCHAR2(20) [CHECK (statut IN ('OUVERT','FERME'))],
+    motif_consultation VARCHAR2(200),
+    notes_generales    VARCHAR2(4000)
+)
+```
+
+**Origine :**
+- Entité DOSSIER_PATIENT du MCD
+- Association AVOIR_DOSSIER (côté N) : ajout de `patient_id` obligatoire
+- Association OUVRIR_DANS (côté N) : ajout de `franchise_id` obligatoire
+
+---
+
+#### TRAITEMENT
+Entité → Table + Association CONTENIR (1,1)
+
+```sql
+TRAITEMENT (
+    traitement_id      NUMBER [PK],
+    dossier_id         NUMBER [NOT NULL] [FK → DOSSIER_PATIENT],
+    date_debut         DATE [NOT NULL],
+    date_fin           DATE,
+    description        VARCHAR2(400),
+    cout_estime        NUMBER(10,2),
+    statut             VARCHAR2(20) [CHECK (statut IN ('PLANIFIE','EN_COURS','TERMINE'))],
+    CONSTRAINT ck_tr_dates CHECK (date_fin IS NULL OR date_fin >= date_debut)
+)
+```
+
+**Origine :**
+- Entité TRAITEMENT du MCD
+- Association CONTENIR (côté N) : ajout de `dossier_id` obligatoire
+
+---
+
+#### ACTE_MEDICAL
+Entité → Table + Associations REALISER (1,1) et EFFECTUER (1,1)
+
+```sql
+ACTE_MEDICAL (
+    acte_id            NUMBER [PK],
+    traitement_id      NUMBER [NOT NULL] [FK → TRAITEMENT],
+    personnel_id       NUMBER [NOT NULL] [FK → PERSONNEL],
+    type_acte          VARCHAR2(80) [NOT NULL],
+    description        VARCHAR2(400),
+    date_acte          DATE [NOT NULL],
+    montant            NUMBER(10,2),
+    radiographie_ref   VARCHAR2(200),
+    prescription_text  VARCHAR2(1000)
+)
+```
+
+**Origine :**
+- Entité ACTE_MEDICAL du MCD
+- Association REALISER (côté N) : ajout de `traitement_id` obligatoire
+- Association EFFECTUER (côté N) : ajout de `personnel_id` obligatoire
+
+---
+
+#### PAIEMENT
+Entité → Table + Associations PAYER_ACTE et PAYER_TRAITEMENT (exclusives)
+
+```sql
+PAIEMENT (
+    paiement_id        NUMBER [PK],
+    acte_id            NUMBER [FK → ACTE_MEDICAL],
+    traitement_id      NUMBER [FK → TRAITEMENT],
+    date_paiement      DATE [NOT NULL],
+    montant            NUMBER(10,2) [NOT NULL],
+    mode_paiement      VARCHAR2(20) [CHECK (mode_paiement IN ('CB','ESPECES','VIREMENT','CHEQUE'))],
+    statut             VARCHAR2(20) [CHECK (statut IN ('PAYE','EN_RETARD','PARTIEL'))],
+    CONSTRAINT ck_pai_cible CHECK (
+        (acte_id IS NOT NULL AND traitement_id IS NULL) OR
+        (acte_id IS NULL AND traitement_id IS NOT NULL)
+    )
+)
+```
+
+**Origine :**
+- Entité PAIEMENT du MCD
+- Associations PAYER_ACTE et PAYER_TRAITEMENT : clés étrangères optionnelles mais exclusives
+- **Contrainte d'exclusivité** : un paiement concerne SOIT un acte SOIT un traitement
+
+---
+
+#### COMMANDE
+Entité → Table + Associations FOURNIR (1,1) et COMMANDER_POUR (1,1)
+
+```sql
+COMMANDE (
+    commande_id        NUMBER [PK],
+    fournisseur_id     NUMBER [NOT NULL] [FK → FOURNISSEUR],
+    franchise_id       NUMBER [NOT NULL] [FK → FRANCHISE],
+    date_commande      DATE [NOT NULL],
+    statut             VARCHAR2(20) [CHECK (statut IN ('EN_ATTENTE','LIVREE','ANNULEE','PARTIELLE'))],
+    date_livraison     DATE,
+    CONSTRAINT ck_cmd_dates CHECK (date_livraison IS NULL OR date_livraison >= date_commande)
+)
+```
+
+**Origine :**
+- Entité COMMANDE du MCD
+- Association FOURNIR (côté N) : ajout de `fournisseur_id` obligatoire
+- Association COMMANDER_POUR (côté N) : ajout de `franchise_id` obligatoire
+
+---
+
+#### DENT
+Entité → Table + Association APPARTENIR_A (1,1)
+
+```sql
+DENT (
+    dent_id            NUMBER [PK],
+    patient_id         NUMBER [NOT NULL] [FK → PATIENT],
+    code_fdi           VARCHAR2(3) [NOT NULL],
+    commentaire        VARCHAR2(200),
+    CONSTRAINT uc_dent_patient UNIQUE (patient_id, code_fdi)
+)
+```
+
+**Origine :**
+- Entité DENT du MCD
+- Association APPARTENIR_A (côté N) : ajout de `patient_id` obligatoire
+- **Contrainte d'unicité** : un patient ne peut avoir qu'une seule dent avec un code FDI donné
+
+---
+
+#### ETAT_DENT
+Entité → Table + Associations OBSERVER (1,1) et LIER_A_ACTE (0,1)
+
+```sql
+ETAT_DENT (
+    etat_dent_id       NUMBER [PK],
+    dent_id            NUMBER [NOT NULL] [FK → DENT],
+    date_observation   DATE [NOT NULL],
+    description        VARCHAR2(400),
+    acte_id            NUMBER [FK → ACTE_MEDICAL]
+)
+```
+
+**Origine :**
+- Entité ETAT_DENT du MCD
+- Association OBSERVER (côté N) : ajout de `dent_id` obligatoire
+- Association LIER_A_ACTE (côté N) : ajout de `acte_id` optionnel
+
+---
+
+#### RESTAURATION
+Entité → Table + Association RESTAURER (1,1)
+
+```sql
+RESTAURATION (
+    restauration_id    NUMBER [PK],
+    etat_dent_id       NUMBER [NOT NULL] [FK → ETAT_DENT],
+    type_restauration  VARCHAR2(80) [NOT NULL],
+    materiau           VARCHAR2(80),
+    date_pose          DATE [NOT NULL],
+    duree_vie_estimee  NUMBER(5,1)
+)
+```
+
+**Origine :**
+- Entité RESTAURATION du MCD
+- Association RESTAURER (côté N) : ajout de `etat_dent_id` obligatoire
+
+---
+
+### 2.3 Transformation des Associations N:M en Tables d'Association
+
+#### FRANCHISE_PERSONNEL
+Association TRAVAILLER_DANS (N:M avec attributs : date_debut, date_fin)
+
+```sql
+FRANCHISE_PERSONNEL (
+    franchise_personnel_id NUMBER [PK],
+    franchise_id           NUMBER [NOT NULL] [FK → FRANCHISE],
+    personnel_id           NUMBER [NOT NULL] [FK → PERSONNEL],
+    date_debut             DATE [NOT NULL],
+    date_fin               DATE,
+    CONSTRAINT ck_fp_dates CHECK (date_fin IS NULL OR date_fin >= date_debut)
+)
+```
+
+**Origine :** Association TRAVAILLER_DANS du MCD (N:M)
+
+**Explication :**
+- Association N:M → Table intermédiaire
+- Clé primaire : `franchise_personnel_id` (identifiant technique)
+- Clés étrangères : `franchise_id` et `personnel_id`
+- Attributs de l'association : `date_debut`, `date_fin`
+
+---
+
+#### COMMANDE_LIGNE
+Association COMPOSER (N:M avec attributs : quantite, prix_unitaire)
+
+```sql
+COMMANDE_LIGNE (
+    commande_ligne_id  NUMBER [PK],
+    commande_id        NUMBER [NOT NULL] [FK → COMMANDE],
+    produit_id         NUMBER [NOT NULL] [FK → PRODUIT_DENTAIRE],
+    quantite           NUMBER(10,2) [NOT NULL],
+    prix_unitaire      NUMBER(10,2) [NOT NULL]
+)
+```
+
+**Origine :** Association COMPOSER du MCD (N:M)
+
+**Explication :**
+- Association N:M entre COMMANDE et PRODUIT_DENTAIRE → Table intermédiaire
+- Clé primaire : `commande_ligne_id`
+- Clés étrangères : `commande_id` et `produit_id`
+- Attributs de l'association : `quantite`, `prix_unitaire`
+
+---
+
+#### ETAT_DENT_ANOMALIE
+Association DETECTER (N:M)
+
+```sql
+ETAT_DENT_ANOMALIE (
+    etat_dent_anomalie_id NUMBER [PK],
+    etat_dent_id          NUMBER [NOT NULL] [FK → ETAT_DENT],
+    anomalie_id           NUMBER [NOT NULL] [FK → ANOMALIE]
+)
+```
+
+**Origine :** Association DETECTER du MCD (N:M)
+
+**Explication :**
+- Association N:M entre ETAT_DENT et ANOMALIE → Table intermédiaire
+- Un état de dent peut avoir plusieurs anomalies détectées
+- Une anomalie peut apparaître sur plusieurs dents
+
+---
+
+#### ACTE_PRODUIT
+Association CONSOMMER (N:M avec attribut : quantite_utilisee)
+
+```sql
+ACTE_PRODUIT (
+    acte_produit_id    NUMBER [PK],
+    acte_id            NUMBER [NOT NULL] [FK → ACTE_MEDICAL],
+    produit_id         NUMBER [NOT NULL] [FK → PRODUIT_DENTAIRE],
+    quantite_utilisee  NUMBER(10,2) [NOT NULL]
+)
+```
+
+**Origine :** Association CONSOMMER du MCD (N:M)
+
+**Explication :**
+- Association N:M entre ACTE_MEDICAL et PRODUIT_DENTAIRE → Table intermédiaire
+- Attribut de l'association : `quantite_utilisee`
+- Permet de tracer les produits consommés lors de chaque acte
+
+---
+
+#### ACTE_EQUIPEMENT
+Association UTILISER_EQUIPEMENT (N:M avec attribut : duree_minutes)
+
+```sql
+ACTE_EQUIPEMENT (
+    acte_equipement_id NUMBER [PK],
+    acte_id            NUMBER [NOT NULL] [FK → ACTE_MEDICAL],
+    equipement_id      NUMBER [NOT NULL] [FK → EQUIPEMENT],
+    duree_minutes      NUMBER(5,0)
+)
+```
+
+**Origine :** Association UTILISER_EQUIPEMENT du MCD (N:M)
+
+**Explication :**
+- Association N:M entre ACTE_MEDICAL et EQUIPEMENT → Table intermédiaire
+- Attribut de l'association : `duree_minutes`
+- Permet de suivre l'utilisation des équipements
+
+---
+
+## 3. Schéma Relationnel Complet
+
+### Vue d'ensemble des tables et relations
+
+```
+FRANCHISE
+    ├── franchise_id [PK]
+    └── est référencée par :
+        ├── PATIENT.franchise_ref_id [FK] (0,1)
+        ├── DOSSIER_PATIENT.franchise_id [FK] (1,1)
+        ├── COMMANDE.franchise_id [FK] (1,1)
+        ├── EQUIPEMENT.franchise_id [FK] (0,1)
+        └── FRANCHISE_PERSONNEL.franchise_id [FK] (N:M)
+
+PERSONNEL
+    ├── personnel_id [PK]
+    └── est référencé par :
+        ├── ACTE_MEDICAL.personnel_id [FK] (1,1)
+        └── FRANCHISE_PERSONNEL.personnel_id [FK] (N:M)
+
+PATIENT
+    ├── patient_id [PK]
+    ├── franchise_ref_id [FK → FRANCHISE] (0,1)
+    └── est référencé par :
+        ├── DOSSIER_PATIENT.patient_id [FK] (1,1)
+        └── DENT.patient_id [FK] (1,1)
+
+DOSSIER_PATIENT
+    ├── dossier_id [PK]
+    ├── patient_id [FK → PATIENT] (1,1)
+    ├── franchise_id [FK → FRANCHISE] (1,1)
+    └── est référencé par :
+        └── TRAITEMENT.dossier_id [FK] (1,1)
+
+TRAITEMENT
+    ├── traitement_id [PK]
+    ├── dossier_id [FK → DOSSIER_PATIENT] (1,1)
+    └── est référencé par :
+        ├── ACTE_MEDICAL.traitement_id [FK] (1,1)
+        └── PAIEMENT.traitement_id [FK] (0,1 exclusif)
+
+ACTE_MEDICAL
+    ├── acte_id [PK]
+    ├── traitement_id [FK → TRAITEMENT] (1,1)
+    ├── personnel_id [FK → PERSONNEL] (1,1)
+    └── est référencé par :
+        ├── PAIEMENT.acte_id [FK] (0,1 exclusif)
+        ├── ETAT_DENT.acte_id [FK] (0,1)
+        ├── ACTE_PRODUIT.acte_id [FK] (N:M)
+        └── ACTE_EQUIPEMENT.acte_id [FK] (N:M)
+
+PAIEMENT
+    ├── paiement_id [PK]
+    ├── acte_id [FK → ACTE_MEDICAL] (0,1 exclusif)
+    └── traitement_id [FK → TRAITEMENT] (0,1 exclusif)
+
+PRODUIT_DENTAIRE
+    ├── produit_id [PK]
+    └── est référencé par :
+        ├── COMMANDE_LIGNE.produit_id [FK] (N:M)
+        └── ACTE_PRODUIT.produit_id [FK] (N:M)
+
+FOURNISSEUR
+    ├── fournisseur_id [PK]
+    └── est référencé par :
+        └── COMMANDE.fournisseur_id [FK] (1,1)
+
+COMMANDE
+    ├── commande_id [PK]
+    ├── fournisseur_id [FK → FOURNISSEUR] (1,1)
+    ├── franchise_id [FK → FRANCHISE] (1,1)
+    └── est référencé par :
+        └── COMMANDE_LIGNE.commande_id [FK] (N:M)
+
+EQUIPEMENT
+    ├── equipement_id [PK]
+    ├── franchise_id [FK → FRANCHISE] (0,1)
+    └── est référencé par :
+        └── ACTE_EQUIPEMENT.equipement_id [FK] (N:M)
+
+DENT
+    ├── dent_id [PK]
+    ├── patient_id [FK → PATIENT] (1,1)
+    ├── UNIQUE (patient_id, code_fdi)
+    └── est référencée par :
+        └── ETAT_DENT.dent_id [FK] (1,1)
+
+ETAT_DENT
+    ├── etat_dent_id [PK]
+    ├── dent_id [FK → DENT] (1,1)
+    ├── acte_id [FK → ACTE_MEDICAL] (0,1)
+    └── est référencé par :
+        ├── RESTAURATION.etat_dent_id [FK] (1,1)
+        └── ETAT_DENT_ANOMALIE.etat_dent_id [FK] (N:M)
+
+ANOMALIE
+    ├── anomalie_id [PK]
+    └── est référencée par :
+        └── ETAT_DENT_ANOMALIE.anomalie_id [FK] (N:M)
+
+RESTAURATION
+    ├── restauration_id [PK]
+    └── etat_dent_id [FK → ETAT_DENT] (1,1)
 ```
 
 ---
 
-## Notes Importantes
+## 4. Tables d'Association N:M
 
-1. **Système FDI** : Le code FDI (Fédération Dentaire Internationale) utilise une numérotation de 11 à 85 pour identifier chaque dent.
+| Table d'Association      | Entité 1          | Entité 2          | Attributs Supplémentaires            |
+|--------------------------|-------------------|-------------------|--------------------------------------|
+| FRANCHISE_PERSONNEL      | FRANCHISE         | PERSONNEL         | date_debut, date_fin                 |
+| COMMANDE_LIGNE           | COMMANDE          | PRODUIT_DENTAIRE  | quantite, prix_unitaire              |
+| ETAT_DENT_ANOMALIE       | ETAT_DENT         | ANOMALIE          | -                                    |
+| ACTE_PRODUIT             | ACTE_MEDICAL      | PRODUIT_DENTAIRE  | quantite_utilisee                    |
+| ACTE_EQUIPEMENT          | ACTE_MEDICAL      | EQUIPEMENT        | duree_minutes                        |
 
-2. **Gestion des stocks** : Le stock des produits doit être mis à jour automatiquement lors de l'utilisation (triggers recommandés).
+---
 
-3. **Calculs automatiques** : Les montants totaux (traitement, commande) peuvent être calculés via des triggers ou des vues.
+## 5. Récapitulatif des Contraintes d'Intégrité
 
-4. **Historique** : Le modèle permet de tracer l'historique complet de l'état dentaire de chaque patient.
+### Contraintes de clé primaire (PK)
+Toutes les tables ont une clé primaire identifiant unique (généralement un `NUMBER GENERATED BY DEFAULT AS IDENTITY`).
 
-5. **Extensibilité** : Le modèle peut facilement être étendu pour ajouter de nouvelles fonctionnalités.
+### Contraintes de clé étrangère (FK)
+
+| Table              | Colonne FK         | Référence              | Cardinalité |
+|--------------------|--------------------|-----------------------|-------------|
+| PATIENT            | franchise_ref_id   | FRANCHISE(franchise_id)| 0,1         |
+| DOSSIER_PATIENT    | patient_id         | PATIENT(patient_id)   | 1,1         |
+| DOSSIER_PATIENT    | franchise_id       | FRANCHISE(franchise_id)| 1,1         |
+| TRAITEMENT         | dossier_id         | DOSSIER_PATIENT(dossier_id)| 1,1    |
+| ACTE_MEDICAL       | traitement_id      | TRAITEMENT(traitement_id)| 1,1       |
+| ACTE_MEDICAL       | personnel_id       | PERSONNEL(personnel_id)| 1,1         |
+| PAIEMENT           | acte_id            | ACTE_MEDICAL(acte_id) | 0,1 (exclusif)|
+| PAIEMENT           | traitement_id      | TRAITEMENT(traitement_id)| 0,1 (exclusif)|
+| COMMANDE           | fournisseur_id     | FOURNISSEUR(fournisseur_id)| 1,1     |
+| COMMANDE           | franchise_id       | FRANCHISE(franchise_id)| 1,1         |
+| EQUIPEMENT         | franchise_id       | FRANCHISE(franchise_id)| 0,1         |
+| DENT               | patient_id         | PATIENT(patient_id)   | 1,1         |
+| ETAT_DENT          | dent_id            | DENT(dent_id)         | 1,1         |
+| ETAT_DENT          | acte_id            | ACTE_MEDICAL(acte_id) | 0,1         |
+| RESTAURATION       | etat_dent_id       | ETAT_DENT(etat_dent_id)| 1,1        |
+
+### Contraintes CHECK
+
+| Table              | Colonne            | Contrainte                                                    |
+|--------------------|--------------------|---------------------------------------------------------------|
+| PERSONNEL          | type_contrat       | IN ('INTERNE','EXTERNE')                                      |
+| PATIENT            | sexe               | IN ('M','F')                                                  |
+| DOSSIER_PATIENT    | statut             | IN ('OUVERT','FERME')                                         |
+| TRAITEMENT         | statut             | IN ('PLANIFIE','EN_COURS','TERMINE')                          |
+| TRAITEMENT         | dates              | date_fin IS NULL OR date_fin >= date_debut                    |
+| PAIEMENT           | mode_paiement      | IN ('CB','ESPECES','VIREMENT','CHEQUE')                       |
+| PAIEMENT           | statut             | IN ('PAYE','EN_RETARD','PARTIEL')                             |
+| PAIEMENT           | cible              | (acte_id IS NOT NULL XOR traitement_id IS NOT NULL)           |
+| COMMANDE           | statut             | IN ('EN_ATTENTE','LIVREE','ANNULEE','PARTIELLE')              |
+| COMMANDE           | dates              | date_livraison IS NULL OR date_livraison >= date_commande     |
+| EQUIPEMENT         | statut             | IN ('ACTIF','HORS_SERVICE','MAINTENANCE')                     |
+| ANOMALIE           | severite           | IN ('LEGER','MODERE','SEVERE')                                |
+| FRANCHISE_PERSONNEL| dates              | date_fin IS NULL OR date_fin >= date_debut                    |
+
+### Contraintes UNIQUE
+
+| Table              | Colonnes           | Raison                                                        |
+|--------------------|--------------------|---------------------------------------------------------------|
+| DENT               | (patient_id, code_fdi) | Un patient ne peut avoir qu'une dent avec un code FDI donné |
+
+---
+
+## 6. Index pour Optimisation des Requêtes
+
+```sql
+-- Index sur les clés étrangères (améliore les jointures)
+CREATE INDEX idx_dp_patient ON dossier_patient(patient_id);
+CREATE INDEX idx_tr_dossier ON traitement(dossier_id);
+CREATE INDEX idx_am_traitement ON acte_medical(traitement_id);
+CREATE INDEX idx_dent_patient ON dent(patient_id);
+CREATE INDEX idx_ed_dent ON etat_dent(dent_id);
+CREATE INDEX idx_ap_produit ON acte_produit(produit_id);
+CREATE INDEX idx_cmd_franchise ON commande(franchise_id);
+
+-- Index sur les statuts (améliore les requêtes de filtrage)
+CREATE INDEX idx_pai_statut ON paiement(statut);
+```
+
+---
+
+## 7. Normalisation
+
+### Forme Normale 1 (1NF) ✅
+- Toutes les valeurs sont atomiques (pas de listes, pas de groupes répétitifs)
+- Chaque table a une clé primaire unique
+
+### Forme Normale 2 (2NF) ✅
+- Respecte 1NF
+- Tous les attributs non-clés dépendent de la totalité de la clé primaire
+- Aucune dépendance partielle
+
+### Forme Normale 3 (3NF) ✅
+- Respecte 2NF
+- Aucune dépendance transitive (attributs non-clés ne dépendent pas d'autres attributs non-clés)
+- Exemple : Les informations du fournisseur ne sont pas répétées dans COMMANDE, elles sont dans FOURNISSEUR
+
+### Forme Normale Boyce-Codd (BCNF) ✅
+- Respecte 3NF
+- Toute dépendance fonctionnelle a pour déterminant une clé candidate
+
+---
+
+## 8. Correspondance MCD → MLD : Tableau Récapitulatif
+
+| Élément MCD                  | Type              | Transformation MLD                                    |
+|------------------------------|-------------------|-------------------------------------------------------|
+| Entité FRANCHISE             | Entité            | Table FRANCHISE                                       |
+| Entité PERSONNEL             | Entité            | Table PERSONNEL                                       |
+| Entité PATIENT               | Entité            | Table PATIENT (+ FK franchise_ref_id)                 |
+| Entité DOSSIER_PATIENT       | Entité            | Table DOSSIER_PATIENT (+ FK patient_id, franchise_id) |
+| Entité TRAITEMENT            | Entité            | Table TRAITEMENT (+ FK dossier_id)                    |
+| Entité ACTE_MEDICAL          | Entité            | Table ACTE_MEDICAL (+ FK traitement_id, personnel_id) |
+| Entité PAIEMENT              | Entité            | Table PAIEMENT (+ FK acte_id OU traitement_id)        |
+| Entité PRODUIT_DENTAIRE      | Entité            | Table PRODUIT_DENTAIRE                                |
+| Entité FOURNISSEUR           | Entité            | Table FOURNISSEUR                                     |
+| Entité COMMANDE              | Entité            | Table COMMANDE (+ FK fournisseur_id, franchise_id)    |
+| Entité EQUIPEMENT            | Entité            | Table EQUIPEMENT (+ FK franchise_id)                  |
+| Entité DENT                  | Entité            | Table DENT (+ FK patient_id)                          |
+| Entité ETAT_DENT             | Entité            | Table ETAT_DENT (+ FK dent_id, acte_id)               |
+| Entité ANOMALIE              | Entité            | Table ANOMALIE (catalogue)                            |
+| Entité RESTAURATION          | Entité            | Table RESTAURATION (+ FK etat_dent_id)                |
+| Association TRAVAILLER_DANS  | N:M avec attributs| Table FRANCHISE_PERSONNEL                             |
+| Association FREQUENTER       | 0,1 → N           | FK franchise_ref_id dans PATIENT                      |
+| Association AVOIR_DOSSIER    | 1,1 → N           | FK patient_id dans DOSSIER_PATIENT                    |
+| Association OUVRIR_DANS      | N → 1,1           | FK franchise_id dans DOSSIER_PATIENT                  |
+| Association CONTENIR         | 1,1 → N           | FK dossier_id dans TRAITEMENT                         |
+| Association REALISER         | 1,1 → N           | FK traitement_id dans ACTE_MEDICAL                    |
+| Association EFFECTUER        | 1,1 → N           | FK personnel_id dans ACTE_MEDICAL                     |
+| Association PAYER_ACTE       | N → 0,1           | FK acte_id dans PAIEMENT (exclusif)                   |
+| Association PAYER_TRAITEMENT | N → 0,1           | FK traitement_id dans PAIEMENT (exclusif)             |
+| Association FOURNIR          | N → 1,1           | FK fournisseur_id dans COMMANDE                       |
+| Association COMMANDER_POUR   | N → 1,1           | FK franchise_id dans COMMANDE                         |
+| Association COMPOSER         | N:M avec attributs| Table COMMANDE_LIGNE                                  |
+| Association POSSEDER_EQUIPEMENT | N → 0,1        | FK franchise_id dans EQUIPEMENT                       |
+| Association APPARTENIR_A     | N → 1,1           | FK patient_id dans DENT                               |
+| Association OBSERVER         | N → 1,1           | FK dent_id dans ETAT_DENT                             |
+| Association LIER_A_ACTE      | N → 0,1           | FK acte_id dans ETAT_DENT                             |
+| Association DETECTER         | N:M               | Table ETAT_DENT_ANOMALIE                              |
+| Association RESTAURER        | N → 1,1           | FK etat_dent_id dans RESTAURATION                     |
+| Association CONSOMMER        | N:M avec attributs| Table ACTE_PRODUIT                                    |
+| Association UTILISER_EQUIPEMENT | N:M avec attributs | Table ACTE_EQUIPEMENT                             |
+
+---
+
+## 9. Conclusion
+
+Ce modèle relationnel respecte les règles de transformation du modèle conceptuel et assure :
+- **Intégrité référentielle** : Toutes les relations sont maintenues par des clés étrangères
+- **Normalisation** : Le modèle est en 3NF/BCNF
+- **Performance** : Index sur les colonnes fréquemment utilisées en jointures et filtres
+- **Évolutivité** : Facile d'ajouter de nouvelles entités ou relations
+- **Traçabilité** : Historisation des affectations du personnel et des états dentaires
+
+Le modèle permet de répondre à tous les besoins analytiques spécifiés dans le cahier des charges du projet.
