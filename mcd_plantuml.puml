@@ -1,0 +1,243 @@
+@startuml MCD_Clinique_Dentissimo
+
+!define ENTITY_COLOR #E3F2FD
+!define ASSOCIATION_COLOR #FFF3E0
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 60
+
+' Style des entités
+skinparam class {
+  BackgroundColor ENTITY_COLOR
+  BorderColor #1976D2
+  ArrowColor #1976D2
+}
+
+' ============================================
+' ENTITÉS PRINCIPALES
+' ============================================
+
+entity "FRANCHISE" as franchise <<Entité>> {
+  * **franchise_id** : NUMBER <<PK>>
+  --
+  nom : VARCHAR2(120)
+  adresse : VARCHAR2(240)
+  ville : VARCHAR2(80)
+  code_postal : VARCHAR2(15)
+  telephone : VARCHAR2(30)
+}
+
+entity "PERSONNEL" as personnel <<Entité>> {
+  * **personnel_id** : NUMBER <<PK>>
+  --
+  nom : VARCHAR2(80)
+  prenom : VARCHAR2(80)
+  role_metier : VARCHAR2(40)
+  specialite : VARCHAR2(80)
+  type_contrat : VARCHAR2(20)
+  telephone : VARCHAR2(30)
+  email : VARCHAR2(120)
+}
+
+entity "PATIENT" as patient <<Entité>> {
+  * **patient_id** : NUMBER <<PK>>
+  --
+  nom : VARCHAR2(80)
+  prenom : VARCHAR2(80)
+  date_naissance : DATE
+  sexe : CHAR(1)
+  telephone : VARCHAR2(30)
+  email : VARCHAR2(120)
+  adresse : VARCHAR2(240)
+  ville : VARCHAR2(80)
+  code_postal : VARCHAR2(15)
+}
+
+entity "DOSSIER_PATIENT" as dossier <<Entité>> {
+  * **dossier_id** : NUMBER <<PK>>
+  --
+  date_creation : DATE
+  statut : VARCHAR2(20)
+  motif_consultation : VARCHAR2(200)
+  notes_generales : VARCHAR2(4000)
+}
+
+entity "TRAITEMENT" as traitement <<Entité>> {
+  * **traitement_id** : NUMBER <<PK>>
+  --
+  date_debut : DATE
+  date_fin : DATE
+  description : VARCHAR2(400)
+  cout_estime : NUMBER(10,2)
+  statut : VARCHAR2(20)
+}
+
+entity "ACTE_MEDICAL" as acte <<Entité>> {
+  * **acte_id** : NUMBER <<PK>>
+  --
+  type_acte : VARCHAR2(80)
+  description : VARCHAR2(400)
+  date_acte : DATE
+  montant : NUMBER(10,2)
+  radiographie_ref : VARCHAR2(200)
+  prescription_text : VARCHAR2(1000)
+}
+
+entity "PAIEMENT" as paiement <<Entité>> {
+  * **paiement_id** : NUMBER <<PK>>
+  --
+  date_paiement : DATE
+  montant : NUMBER(10,2)
+  mode_paiement : VARCHAR2(20)
+  statut : VARCHAR2(20)
+}
+
+entity "PRODUIT_DENTAIRE" as produit <<Entité>> {
+  * **produit_id** : NUMBER <<PK>>
+  --
+  nom : VARCHAR2(120)
+  type_produit : VARCHAR2(80)
+  stock_quantite : NUMBER(10,2)
+  unite : VARCHAR2(20)
+  seuil_alerte : NUMBER(10,2)
+  prix_unitaire : NUMBER(10,2)
+}
+
+entity "FOURNISSEUR" as fournisseur <<Entité>> {
+  * **fournisseur_id** : NUMBER <<PK>>
+  --
+  nom : VARCHAR2(120)
+  contact : VARCHAR2(120)
+  telephone : VARCHAR2(30)
+  email : VARCHAR2(120)
+}
+
+entity "COMMANDE" as commande <<Entité>> {
+  * **commande_id** : NUMBER <<PK>>
+  --
+  date_commande : DATE
+  statut : VARCHAR2(20)
+  date_livraison : DATE
+}
+
+entity "EQUIPEMENT" as equipement <<Entité>> {
+  * **equipement_id** : NUMBER <<PK>>
+  --
+  nom : VARCHAR2(120)
+  categorie : VARCHAR2(80)
+  date_acquisition : DATE
+  cout_acquisition : NUMBER(12,2)
+  statut : VARCHAR2(20)
+}
+
+entity "DENT" as dent <<Entité>> {
+  * **dent_id** : NUMBER <<PK>>
+  --
+  code_fdi : VARCHAR2(3)
+  commentaire : VARCHAR2(200)
+}
+
+entity "ETAT_DENT" as etat_dent <<Entité>> {
+  * **etat_dent_id** : NUMBER <<PK>>
+  --
+  date_observation : DATE
+  description : VARCHAR2(400)
+}
+
+entity "ANOMALIE" as anomalie <<Entité>> {
+  * **anomalie_id** : NUMBER <<PK>>
+  --
+  libelle : VARCHAR2(120)
+  description : VARCHAR2(400)
+  severite : VARCHAR2(20)
+}
+
+entity "RESTAURATION" as restauration <<Entité>> {
+  * **restauration_id** : NUMBER <<PK>>
+  --
+  type_restauration : VARCHAR2(80)
+  materiau : VARCHAR2(80)
+  date_pose : DATE
+  duree_vie_estimee : NUMBER(5,1)
+}
+
+' ============================================
+' RELATIONS 1:N
+' ============================================
+
+franchise ||--o{ patient : "  FREQUENTER\n  (0,1)-(0,n)  "
+franchise ||--|{ dossier : "  OUVRIR_DANS\n  (1,1)-(0,n)  "
+franchise ||--|{ commande : "  COMMANDER_POUR\n  (1,1)-(0,n)  "
+franchise ||--o{ equipement : "  POSSEDER\n  (0,1)-(0,n)  "
+
+patient ||--|{ dossier : "  AVOIR_DOSSIER\n  (1,1)-(0,n)  "
+patient ||--|{ dent : "  APPARTENIR_A\n  (1,1)-(0,n)  "
+
+dossier ||--o{ traitement : "  CONTENIR\n  (1,1)-(0,n)  "
+
+traitement ||--o{ acte : "  REALISER\n  (1,1)-(0,n)  "
+traitement ||--o{ paiement : "  PAYER_TRAIT.\n  (0,1)-(0,n)  "
+
+personnel ||--o{ acte : "  EFFECTUER\n  (1,1)-(0,n)  "
+
+acte ||--o{ paiement : "  PAYER_ACTE\n  (0,1)-(0,n)  "
+acte ||--o{ etat_dent : "  LIER_A_ACTE\n  (0,1)-(0,n)  "
+
+dent ||--o{ etat_dent : "  OBSERVER\n  (1,1)-(0,n)  "
+
+etat_dent ||--o{ restauration : "  RESTAURER\n  (1,1)-(0,n)  "
+
+fournisseur ||--|{ commande : "  FOURNIR\n  (1,1)-(0,n)  "
+
+' ============================================
+' RELATIONS N:M (Many-to-Many)
+' ============================================
+
+personnel }o--o{ franchise : "  TRAVAILLER_DANS\n  (0,n)-(0,n)\n  date_debut, date_fin  "
+
+commande }o--o{ produit : "  COMPOSER\n  (0,n)-(0,n)\n  quantite, prix_unitaire  "
+
+etat_dent }o--o{ anomalie : "  DETECTER\n  (0,n)-(0,n)  "
+
+acte }o--o{ produit : "  CONSOMMER\n  (0,n)-(0,n)\n  quantite_utilisee  "
+
+acte }o--o{ equipement : "  UTILISER\n  (0,n)-(0,n)\n  duree_minutes  "
+
+' ============================================
+' NOTES ET LÉGENDES
+' ============================================
+
+note top of franchise
+  **FRANCHISE**
+  Représente les différentes
+  agences de la clinique
+end note
+
+note right of dent
+  **SYSTÈME FDI**
+  Code FDI : 11-48 (adultes)
+           51-85 (enfants)
+end note
+
+note bottom of paiement
+  **CONTRAINTE**
+  Un paiement est lié SOIT
+  à un acte SOIT à un traitement
+  (jamais les deux)
+end note
+
+legend right
+  |= Symbole |= Signification |
+  | **||--o{** | 1 à plusieurs (optionnel) |
+  | **||--|{** | 1 à plusieurs (obligatoire) |
+  | **}o--o{** | Plusieurs à plusieurs (N:M) |
+  | **(0,1)** | Minimum 0, Maximum 1 |
+  | **(1,1)** | Minimum 1, Maximum 1 |
+  | **(0,n)** | Minimum 0, Maximum n |
+  | **(1,n)** | Minimum 1, Maximum n |
+endlegend
+
+@enduml
